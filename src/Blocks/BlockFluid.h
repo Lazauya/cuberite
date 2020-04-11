@@ -10,11 +10,11 @@
 class cBlockFluidHandler :
 	public cBlockHandler
 {
-	typedef cBlockHandler super;
+	using Super = cBlockHandler;
 
 public:
-	cBlockFluidHandler(BLOCKTYPE a_BlockType)
-		: cBlockHandler(a_BlockType)
+	cBlockFluidHandler(BLOCKTYPE a_BlockType):
+		Super(a_BlockType)
 	{
 
 	}
@@ -61,7 +61,7 @@ public:
 				break;
 			}
 		}
-		super::Check(a_ChunkInterface, a_PluginInterface, a_RelPos, a_Chunk);
+		Super::Check(a_ChunkInterface, a_PluginInterface, a_RelPos, a_Chunk);
 	}
 
 
@@ -78,6 +78,10 @@ public:
 		ASSERT(!"Unhandled blocktype in fluid/water handler!");
 		return 0;
 	}
+
+
+
+
 
 	virtual bool CanSustainPlant(BLOCKTYPE a_Plant) override
 	{
@@ -99,41 +103,56 @@ public:
 class cBlockLavaHandler :
 	public cBlockFluidHandler
 {
-	typedef cBlockFluidHandler super;
+	using Super = cBlockFluidHandler;
+
 public:
 
-	cBlockLavaHandler(BLOCKTYPE a_BlockType) :
-		super(a_BlockType)
+	cBlockLavaHandler(BLOCKTYPE a_BlockType):
+		Super(a_BlockType)
 	{
 	}
 
-	/** Called to tick the block */
-	virtual void OnUpdate(cChunkInterface & cChunkInterface, cWorldInterface & a_WorldInterface, cBlockPluginInterface & a_PluginInterface, cChunk & a_Chunk, int a_RelX, int a_RelY, int a_RelZ) override
+
+
+
+
+	virtual void OnUpdate(
+		cChunkInterface & a_ChunkInterface,
+		cWorldInterface & a_WorldInterface,
+		cBlockPluginInterface & a_PluginInterface,
+		cChunk & a_Chunk,
+		const Vector3i a_RelPos
+	) override
 	{
 		if (a_Chunk.GetWorld()->ShouldLavaSpawnFire())
 		{
 			// Try to start up to 5 fires:
 			for (int i = 0; i < 5; i++)
 			{
-				TryStartFireNear(a_RelX, a_RelY, a_RelZ, a_Chunk);
+				TryStartFireNear(a_RelPos, a_Chunk);
 			}
 		}
 	}
 
+
+
+
+
 	/** Tries to start a fire near the lava at given coords. Returns true if fire started. */
-	static bool TryStartFireNear(int a_RelX, int a_RelY, int a_RelZ, cChunk & a_Chunk)
+	static bool TryStartFireNear(const Vector3i a_RelPos, cChunk & a_Chunk)
 	{
-		// Pick a block next to this lava block:
+		// Pick a random block next to this lava block:
 		int rnd = a_Chunk.GetWorld()->GetTickRandomNumber(cChunkDef::NumBlocks * 8) / 7;
 		int x = (rnd % 3) - 1;         // -1 .. 1
 		int y = ((rnd / 4) % 4) - 1;   // -1 .. 2
 		int z = ((rnd / 16) % 3) - 1;  // -1 .. 1
+		auto pos = a_RelPos + Vector3i(x, y, z);
 
 		// Check if it's fuel:
 		BLOCKTYPE BlockType;
 		if (
-			((a_RelY + y < 0) || (a_RelY + y >= cChunkDef::Height)) ||
-			!a_Chunk.UnboundedRelGetBlockType(a_RelX + x, a_RelY + y, a_RelZ + z, BlockType) ||
+			!cChunkDef::IsValidHeight(pos.y) ||
+			!a_Chunk.UnboundedRelGetBlockType(a_RelPos, BlockType) ||
 			!cFireSimulator::IsFuel(BlockType)
 		)
 		{
@@ -141,10 +160,7 @@ public:
 		}
 
 		// Try to set it on fire:
-		static struct
-		{
-			int x, y, z;
-		} CrossCoords[] =
+		static Vector3i CrossCoords[] =
 		{
 			{-1,  0,  0},
 			{ 1,  0,  0},
@@ -153,30 +169,36 @@ public:
 			{ 0,  0, -1},
 			{ 0,  0,  1},
 		} ;
-		int RelX = a_RelX + x;
-		int RelY = a_RelY + y;
-		int RelZ = a_RelZ + z;
 		for (size_t i = 0; i < ARRAYCOUNT(CrossCoords); i++)
 		{
+			auto neighborPos = pos + CrossCoords[i];
 			if (
-				((RelY + CrossCoords[i].y >= 0) && (RelY + CrossCoords[i].y < cChunkDef::Height)) &&
-				a_Chunk.UnboundedRelGetBlockType(RelX + CrossCoords[i].x, RelY + CrossCoords[i].y, RelZ + CrossCoords[i].z, BlockType) &&
+				cChunkDef::IsValidHeight(neighborPos.y) &&
+				a_Chunk.UnboundedRelGetBlockType(neighborPos, BlockType) &&
 				(BlockType == E_BLOCK_AIR)
 			)
 			{
-				// This is an air block next to a fuel next to lava, light it up:
-				a_Chunk.UnboundedRelSetBlock(RelX + CrossCoords[i].x, RelY + CrossCoords[i].y, RelZ + CrossCoords[i].z, E_BLOCK_FIRE, 0);
+				// This is an air block next to a fuel next to lava, light the fuel block up:
+				a_Chunk.UnboundedRelSetBlock(neighborPos, E_BLOCK_FIRE, 0);
 				return true;
 			}
 		}  // for i - CrossCoords[]
 		return false;
 	}
 
+
+
+
+
 	virtual ColourID GetMapBaseColourID(NIBBLETYPE a_Meta) override
 	{
 		UNUSED(a_Meta);
 		return 4;
 	}
+
+
+
+
 
 	virtual bool CanSustainPlant(BLOCKTYPE a_Plant) override
 	{

@@ -221,25 +221,32 @@ public:
 
 
 
-	virtual void OnUpdate(cChunkInterface & a_ChunkInterface, cWorldInterface & a_WorldInterface, cBlockPluginInterface & a_BlockPluginInterface, cChunk & a_Chunk, int a_RelX, int a_RelY, int a_RelZ) override
+	virtual void OnUpdate(
+		cChunkInterface & a_ChunkInterface,
+		cWorldInterface & a_WorldInterface,
+		cBlockPluginInterface & a_PluginInterface,
+		cChunk & a_Chunk,
+		const Vector3i a_RelPos
+	) override
 	{
 		UNUSED(a_ChunkInterface);
 		UNUSED(a_WorldInterface);
 
 		// Vine cannot grow down if at the bottom:
-		if (a_RelY < 1)
+		if (a_RelPos.y < 1)
 		{
 			return;
 		}
 
 		// Grow one block down, if possible:
 		BLOCKTYPE Block;
-		a_Chunk.UnboundedRelGetBlockType(a_RelX, a_RelY - 1, a_RelZ, Block);
+		a_Chunk.UnboundedRelGetBlockType(a_RelPos.addedY(-1), Block);
 		if (Block == E_BLOCK_AIR)
 		{
-			if (!a_BlockPluginInterface.CallHookBlockSpread(a_RelX + a_Chunk.GetPosX() * cChunkDef::Width, a_RelY - 1, a_RelZ + a_Chunk.GetPosZ() * cChunkDef::Width, ssVineSpread))
+			auto worldPos = a_Chunk.RelativeToAbsolute(a_RelPos.addedY(-1));
+			if (!a_PluginInterface.CallHookBlockSpread(worldPos.x, worldPos.y, worldPos.z, ssVineSpread))
 			{
-				a_Chunk.UnboundedRelSetBlock(a_RelX, a_RelY - 1, a_RelZ, E_BLOCK_VINES, a_Chunk.GetMeta(a_RelX, a_RelY, a_RelZ));
+				a_Chunk.UnboundedRelSetBlock(a_RelPos.addedY(-1), E_BLOCK_VINES, a_Chunk.GetMeta(a_RelPos));
 			}
 		}
 	}

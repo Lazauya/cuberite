@@ -46,18 +46,26 @@ public:
 
 
 
-	virtual void OnUpdate(cChunkInterface & cChunkInterface, cWorldInterface & a_WorldInterface, cBlockPluginInterface & a_PluginInterface, cChunk & a_Chunk, int a_RelX, int a_RelY, int a_RelZ) override
+	virtual void OnUpdate(
+		cChunkInterface & a_ChunkInterface,
+		cWorldInterface & a_WorldInterface,
+		cBlockPluginInterface & a_PluginInterface,
+		cChunk & a_Chunk,
+		const Vector3i a_RelPos
+	) override
 	{
 		if (GetRandomProvider().RandBool(0.9995))
 		{
 			return;
 		}
+		auto worldPos = a_Chunk.RelativeToAbsolute(a_RelPos);
 
-		int PosX = a_Chunk.GetPosX() * cChunkDef::Width + a_RelX;
-		int PosZ = a_Chunk.GetPosZ() * cChunkDef::Width + a_RelZ;
-
-		a_WorldInterface.SpawnMob(PosX, a_RelY, PosZ, mtZombiePigman, false);
+		a_WorldInterface.SpawnMob(worldPos.x, worldPos.y, worldPos.z, mtZombiePigman, false);
 	}
+
+
+
+
 
 	virtual bool CanBeAt(cChunkInterface & a_ChunkInterface, int a_RelX, int a_RelY, int a_RelZ, const cChunk & a_Chunk) override
 	{
